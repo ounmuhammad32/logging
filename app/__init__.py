@@ -117,7 +117,6 @@ def create_app():
         request_id = request.headers.get('X-Request-ID')
         if request_id:
             log_params.append(('request_id', request_id))
-        #this is preparing the parameters to be turned into log message
         parts = []
         for name, value in log_params:
             part = name + ': ' + str(value) + ', '
