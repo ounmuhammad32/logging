@@ -13,11 +13,12 @@ from flask_wtf.csrf import CSRFProtect
 
 from app.auth import auth
 from app.auth import auth
-from app.cli import create_database
+from app.cli import create_database, create_log_folder
 from app.context_processors import utility_text_processors
 from app.db import db
 from app.db.models import User
 from app.exceptions import http_exceptions
+from app.log_formatters import RequestFormatter
 from app.simple_pages import simple_pages
 import logging
 from flask.logging import default_handler
@@ -29,16 +30,6 @@ def page_not_found(e):
     return render_template("404.html"), 404
 
 
-class RequestFormatter(logging.Formatter):
-    def format(self, record):
-        if has_request_context():
-            record.url = request.url
-            record.remote_addr = request.remote_addr
-        else:
-            record.url = None
-            record.remote_addr = None
-
-        return super().format(record)
 
 
 def create_app():
@@ -61,6 +52,7 @@ def create_app():
     db.init_app(app)
     # add command function to cli commands
     app.cli.add_command(create_database)
+    app.cli.add_command(create_log_folder)
 
     # Deactivate the default flask logger so that log messages don't get duplicated
     app.logger.removeHandler(default_handler)
@@ -79,8 +71,8 @@ def create_app():
     # Create a log file formatter object to create the entry in the log
     formatter = RequestFormatter(
         '[%(asctime)s] %(remote_addr)s requested %(url)s\n'
-        '%(levelname)s in %(module)s: %(message)s'
-    )
+        '%(levelname)s in %(module)s: %(message)s')
+
     # set the formatter for the log entry
     handler.setFormatter(formatter)
     # Set the logging level of the file handler object so that it logs INFO and up
@@ -100,6 +92,7 @@ def create_app():
             return response
         elif request.path.startswith('/bootstrap'):
             return response
+
 
         now = time.time()
         duration = round(now - g.start, 2)
@@ -124,15 +117,13 @@ def create_app():
         request_id = request.headers.get('X-Request-ID')
         if request_id:
             log_params.append(('request_id', request_id))
-
         parts = []
         for name, value in log_params:
             part = name + ': ' + str(value) + ', '
             parts.append(part)
-        line = " ".join(parts)
+        log_message = " ".join(parts)
         #this triggers a log entry to be created with whatever is in the line variable
-        app.logger.info('this is the plain message')
-
+        app.logger.info(log_message)
         return response
 
     return app
